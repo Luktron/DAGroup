@@ -412,7 +412,12 @@ function renderGameOver() {
 
     const me = gameState.me;
     const btnPlay = document.getElementById('btnPlayAgain');
+    const btnExit = document.getElementById('btnExitGameOver');
     const waitingMsg = document.getElementById('waitingHostMsg');
+
+    // Exit button visible for everyone
+    if (btnExit) btnExit.style.display = 'inline-flex';
+
     if (gameState.is_creator) {
         btnPlay.style.display = 'inline-flex';
         if (waitingMsg) waitingMsg.style.display = 'none';

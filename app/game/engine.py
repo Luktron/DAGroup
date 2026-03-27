@@ -290,18 +290,8 @@ class GameRoom:
                         "target_name": target.name,
                     })
 
-                    # Check win condition
+                    # Check win condition — assassin wins when all victims are dead
                     if not self.get_alive_victims():
-                        detective = self.get_player_by_role(RoleType.DETECTIVE)
-                        if not detective or detective.status == PlayerStatus.DEAD:
-                            self.end_game("assassin")
-                        elif len(self.get_alive_players()) <= 1:
-                            self.end_game("assassin")
-                    alive_non_assassin = [
-                        p for p in self.get_alive_players()
-                        if p.role != RoleType.ASSASSIN
-                    ]
-                    if not alive_non_assassin:
                         self.end_game("assassin")
             else:
                 remaining.append(pk)
