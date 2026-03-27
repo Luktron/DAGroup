@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Lobby — {{ room.room_code }}{% endblock %}
+{% block body_class %}page-lobby{% endblock %}
+
+{% block content %}
+<div class="lobby-container">
+    <header class="lobby-header">
+        <h1><span class="eye-icon-sm">👁️</span> {{ t.game_title }}</h1>
+        <div class="room-code-display" onclick="copyCode()">
+            <span class="code-label">{{ t.room_code }}:</span>
+            <span class="code-value" id="roomCode">{{ room.room_code }}</span>
+            <span class="copy-hint" id="copyHint">📋</span>
+        </div>
+    </header>
+
+    <div class="lobby-body">
+        <div class="player-grid" id="playerGrid">
+            {% for p in room.players %}
+            <div class="player-slot filled" style="--accent: {{ p.avatar_color }}">
+                <div class="avatar" style="background: {{ p.avatar_color }}">
+                    {{ p.name[0]|upper }}
+                </div>
+                <span class="player-name">
+                    {{ p.name }}
+                    {% if p.is_ai %}<span class="ai-badge">🤖</span>{% endif %}
+                    {% if p.id == room.creator_id %}<span class="host-badge">⭐</span>{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+
+            {% for i in range(room.player_count, room.max_players) %}
+            <div class="player-slot empty">
+                <div class="avatar empty-avatar">?</div>
+                <span class="player-name">{{ t.waiting }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="lobby-info">
+            <p>{{ t.players }}: <strong id="playerCount">{{ room.player_count }}</strong> / {{ room.max_players }}</p>
+        </div>
+
+        <div class="lobby-actions">
+            {% if player_id == room.creator_id %}
+            <button class="btn btn-accent btn-glow" id="btnFillAI" onclick="fillWithAI()">
+                <span>🤖</span> {{ t.fill_with_ai }}
+            </button>
+            <button class="btn btn-primary btn-glow btn-large" id="btnStart"
+                    onclick="startGame()"
+                    {% if not room.can_start %}disabled{% endif %}>
+                <span>⚡</span> {{ t.start_game }}
+            </button>
+            {% else %}
+            <div class="waiting-animation">
+                <div class="pulse-ring"></div>
+                <p>{{ t.waiting }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+const ROOM_CODE = "{{ room.room_code }}";
+const PLAYER_ID = "{{ player_id }}";
+const LANG = "{{ lang }}";
+let ws;
+
+function connectWS() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${proto}//${location.host}/ws/${ROOM_CODE}/${PLAYER_ID}`);
+
+    ws.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+
+        if (data.type === 'lobby_update') {
+            updateLobby(data.state);
+        }
+        else if (data.type === 'game_started') {
+            // Redirect to game page
+            window.location.href = `/game/${ROOM_CODE}?pid=${PLAYER_ID}&lang=${LANG}`;
+        }
+    };
+
+    ws.onclose = function() {
+        setTimeout(connectWS, 2000);
+    };
+}
+
+function updateLobby(state) {
+    const grid = document.getElementById('playerGrid');
+    let html = '';
+
+    state.players.forEach(p => {
+        const isAI = p.is_ai ? '<span class="ai-badge">🤖</span>' : '';
+        const isHost = p.id === state.creator_id ? '<span class="host-badge">⭐</span>' : '';
+        html += `
+            <div class="player-slot filled" style="--accent: ${p.avatar_color}">
+                <div class="avatar" style="background: ${p.avatar_color}">
+                    ${p.name.charAt(0).toUpperCase()}
+                </div>
+                <span class="player-name">${p.name} ${isAI} ${isHost}</span>
+            </div>`;
+    });
+
+    for (let i = state.player_count; i < state.max_players; i++) {
+        html += `
+            <div class="player-slot empty">
+                <div class="avatar empty-avatar">?</div>
+                <span class="player-name">...</span>
+            </div>`;
+    }
+
+    grid.innerHTML = html;
+    document.getElementById('playerCount').textContent = state.player_count;
+
+    const btnStart = document.getElementById('btnStart');
+    if (btnStart) {
+        btnStart.disabled = !state.can_start;
+    }
+}
+
+function startGame() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'start_game' }));
+    }
+}
+
+function fillWithAI() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'fill_ai' }));
+    }
+}
+
+function copyCode() {
+    navigator.clipboard.writeText(ROOM_CODE).then(() => {
+        const hint = document.getElementById('copyHint');
+        hint.textContent = '✅';
+        setTimeout(() => hint.textContent = '📋', 2000);
+    });
+}
+
+connectWS();
+</script>
+{% endblock %}

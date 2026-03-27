@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Game — {{ room_code }}{% endblock %}
+{% block body_class %}page-game{% endblock %}
+
+{% block head %}
+<style>
+    /* Dynamic tension overlay — controlled by JS */
+    .tension-overlay {
+        position: fixed; inset: 0; pointer-events: none; z-index: 1;
+        background: radial-gradient(ellipse at center, transparent 40%, rgba(180,0,0,var(--tension-alpha, 0)) 100%);
+        transition: all 2s ease;
+    }
+    .blackout-overlay {
+        position: fixed; inset: 0; z-index: 50; pointer-events: none;
+        background: rgba(0,0,0,0.85);
+        display: none;
+        animation: blackoutPulse 1s ease-in-out infinite alternate;
+    }
+    .blackout-overlay.active { display: flex; align-items: center; justify-content: center; }
+    .blackout-overlay .blackout-text { color: #ff4444; font-size: 2rem; font-weight: 900; text-shadow: 0 0 20px #ff0000; }
+    @keyframes blackoutPulse { from { opacity: 0.7; } to { opacity: 0.95; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tension-overlay" id="tensionOverlay"></div>
+<div class="blackout-overlay" id="blackoutOverlay">
+    <span class="blackout-text">{{ t.blackout }}</span>
+</div>
+
+<div class="game-container" id="gameContainer">
+    <!-- Top bar -->
+    <header class="game-header">
+        <div class="header-left">
+            <span class="room-badge">{{ room_code }}</span>
+            <span class="round-badge" id="roundBadge"></span>
+        </div>
+        <div class="header-center">
+            <div class="role-reveal" id="roleReveal"></div>
+        </div>
+        <div class="header-right">
+            <span class="alive-badge" id="aliveBadge"></span>
+            <span class="tension-meter" id="tensionMeter">
+                <span class="tension-fill" id="tensionFill"></span>
+            </span>
+        </div>
+    </header>
+
+    <!-- Main game area -->
+    <main class="game-main">
+        <!-- Player circle -->
+        <div class="player-circle" id="playerCircle"></div>
+
+        <!-- Action feedback -->
+        <div class="action-feedback" id="actionFeedback"></div>
+
+        <!-- Investigation panel (detective only) -->
+        <div class="investigation-panel hidden" id="investigationPanel">
+            <h3>🔍 {{ 'Relatório de Investigação' if lang == 'pt' else 'Investigation Report' }}</h3>
+            <div id="investigationContent"></div>
+        </div>
+    </main>
+
+    <!-- Bottom action bar -->
+    <footer class="game-footer">
+        <!-- Role-specific actions -->
+        <div class="action-bar" id="actionBar"></div>
+
+        <!-- Chat -->
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-toggle" onclick="toggleChat()">
+                💬 <span class="chat-badge hidden" id="chatBadge">0</span>
+            </div>
+            <div class="chat-panel hidden" id="chatPanel">
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input-row">
+                    <input type="text" id="chatInput" maxlength="200"
+                           placeholder="{{ 'Mensagem...' if lang == 'pt' else 'Message...' }}"
+                           autocomplete="off">
+                    <button onclick="sendChat()" class="btn btn-sm">{{ t.send }}</button>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Event log (bottom-left subtle) -->
+    <div class="event-log" id="eventLog"></div>
+
+    <!-- Game Over overlay -->
+    <div class="game-over-overlay hidden" id="gameOverOverlay">
+        <div class="game-over-card">
+            <h2 id="gameOverTitle"></h2>
+            <p id="gameOverMessage"></p>
+            <div id="gameOverStats"></div>
+            <button class="btn btn-primary btn-glow" id="btnPlayAgain" onclick="playAgain()">
+                <span>🔄</span> {{ t.play_again }}
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/game.js"></script>
+<script>
+    // Initialize game with server context
+    initGame({
+        roomCode: "{{ room_code }}",
+        playerId: "{{ player_id }}",
+        lang: "{{ lang }}",
+        translations: {{ t | tojson }},
+        config: {
+            assassinCooldown: {{ config.ASSASSIN_COOLDOWN }},
+            detectiveCooldown: {{ config.DETECTIVE_COOLDOWN }},
+        }
+    });
+</script>
+{% endblock %}

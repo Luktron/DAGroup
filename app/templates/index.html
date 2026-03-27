@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block body_class %}page-index{% endblock %}
+
+{% block content %}
+<div class="index-container">
+    <!-- Animated background particles -->
+    <div class="particles" id="particles"></div>
+
+    <header class="index-header">
+        <div class="logo-icon">
+            <span class="eye-icon">👁️</span>
+        </div>
+        <h1 class="game-title glitch" data-text="{{ t.game_title }}">{{ t.game_title }}</h1>
+        <p class="subtitle">{{ 'Jogo de suspense social em tempo real' if lang == 'pt' else 'Real-time social suspense game' }}</p>
+    </header>
+
+    {% if error %}
+    <div class="error-toast" id="errorToast">
+        <span>⚠️</span> {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="index-cards">
+        <!-- Create Room -->
+        <div class="card card-create">
+            <div class="card-glow"></div>
+            <h2><span class="card-icon">🎮</span> {{ t.create_room }}</h2>
+            <form method="POST" action="/create-room" class="form-vertical" id="createForm">
+                <input type="hidden" name="lang" value="{{ lang }}">
+                <div class="input-group">
+                    <label for="create-name">{{ t.your_name }}</label>
+                    <input type="text" id="create-name" name="player_name"
+                           placeholder="{{ 'Digite seu nome...' if lang == 'pt' else 'Enter your name...' }}"
+                           required maxlength="20" autocomplete="off" class="input-neon">
+                </div>
+                <div class="input-group">
+                    <label for="max-players">{{ t.players }} ({{ config.MIN_PLAYERS }}-{{ config.MAX_PLAYERS }})</label>
+                    <div class="player-counter">
+                        <button type="button" class="btn-counter" onclick="adjustPlayers(-1)">−</button>
+                        <input type="number" id="max-players" name="max_players"
+                               value="{{ config.DEFAULT_PLAYERS }}"
+                               min="{{ config.MIN_PLAYERS }}" max="{{ config.MAX_PLAYERS }}"
+                               class="input-neon input-center" readonly>
+                        <button type="button" class="btn-counter" onclick="adjustPlayers(1)">+</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-glow">
+                    <span>🚀</span> {{ t.create_room }}
+                </button>
+            </form>
+        </div>
+
+        <!-- Join Room -->
+        <div class="card card-join">
+            <div class="card-glow"></div>
+            <h2><span class="card-icon">🔑</span> {{ t.join_room }}</h2>
+            <form method="POST" action="/join-room" class="form-vertical" id="joinForm">
+                <input type="hidden" name="lang" value="{{ lang }}">
+                <div class="input-group">
+                    <label for="join-name">{{ t.your_name }}</label>
+                    <input type="text" id="join-name" name="player_name"
+                           placeholder="{{ 'Digite seu nome...' if lang == 'pt' else 'Enter your name...' }}"
+                           required maxlength="20" autocomplete="off" class="input-neon">
+                </div>
+                <div class="input-group">
+                    <label for="room-code">{{ t.room_code }}</label>
+                    <input type="text" id="room-code" name="room_code"
+                           placeholder="ABC123" required maxlength="6"
+                           autocomplete="off" class="input-neon input-code"
+                           style="text-transform: uppercase; letter-spacing: 0.3em;">
+                </div>
+                <button type="submit" class="btn btn-secondary btn-glow">
+                    <span>🔗</span> {{ t.join_room }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Language toggle -->
+    <div class="lang-toggle">
+        <a href="/?lang=pt" class="lang-btn {% if lang == 'pt' %}active{% endif %}">🇧🇷 PT</a>
+        <a href="/?lang=en" class="lang-btn {% if lang == 'en' %}active{% endif %}">🇺🇸 EN</a>
+    </div>
+
+    <!-- How to play -->
+    <div class="how-to-play">
+        <details>
+            <summary>{{ 'Como Jogar?' if lang == 'pt' else 'How to Play?' }}</summary>
+            <div class="rules-grid">
+                <div class="rule-card">
+                    <span class="rule-icon">🔪</span>
+                    <h4>{{ t.assassin }}</h4>
+                    <p>{{ 'Elimine todos os jogadores sem ser descoberto. Use a piscada digital para matar secretamente.' if lang == 'pt' else 'Eliminate all players without being discovered. Use the digital blink to kill secretly.' }}</p>
+                </div>
+                <div class="rule-card">
+                    <span class="rule-icon">🕵️</span>
+                    <h4>{{ t.detective }}</h4>
+                    <p>{{ 'Investigue os jogadores, analise padrões e identifique o assassino. Cuidado: errar tem consequências!' if lang == 'pt' else 'Investigate players, analyze patterns and identify the assassin. Be careful: mistakes have consequences!' }}</p>
+                </div>
+                <div class="rule-card">
+                    <span class="rule-icon">😱</span>
+                    <h4>{{ t.victim }}</h4>
+                    <p>{{ 'Observe, converse e ajude o detetive a encontrar o assassino antes que seja tarde demais!' if lang == 'pt' else 'Observe, chat and help the detective find the assassin before it is too late!' }}</p>
+                </div>
+            </div>
+        </details>
+    </div>
+</div>
+
+<script>
+function adjustPlayers(delta) {
+    const input = document.getElementById('max-players');
+    let val = parseInt(input.value) + delta;
+    val = Math.max({{ config.MIN_PLAYERS }}, Math.min({{ config.MAX_PLAYERS }}, val));
+    input.value = val;
+}
+
+// Particles
+(function() {
+    const container = document.getElementById('particles');
+    for (let i = 0; i < 30; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.animationDelay = Math.random() * 8 + 's';
+        p.style.animationDuration = (8 + Math.random() * 12) + 's';
+        p.style.opacity = Math.random() * 0.5 + 0.1;
+        container.appendChild(p);
+    }
+})();
+
+// Auto-dismiss error
+const errToast = document.getElementById('errorToast');
+if (errToast) setTimeout(() => errToast.classList.add('fade-out'), 4000);
+</script>
+{% endblock %}

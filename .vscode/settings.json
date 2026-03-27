@@ -1,0 +1,13 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+    "python.analysis.extraPaths": ["${workspaceFolder}"],
+    "[jinja-html]": {
+        "editor.defaultFormatter": null
+    },
+    "files.associations": {
+        "*.html": "jinja-html"
+    },
+    "emmet.includeLanguages": {
+        "jinja-html": "html"
+    }
+}
