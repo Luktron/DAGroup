@@ -102,6 +102,9 @@
             <button class="btn btn-primary btn-glow" id="btnPlayAgain" onclick="playAgain()" style="display:none">
                 <span>🔄</span> {{ t.play_again }}
             </button>
+            <button class="btn btn-exit btn-glow" id="btnExitGameOver" onclick="leaveGame()" style="display:none; margin-top: 0.5rem;">
+                <span>🚪</span> {{ 'Sair' if lang == 'pt' else 'Exit' }}
+            </button>
             <p id="waitingHostMsg" style="display:none; color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">
                 {{ 'Aguardando o anfitrião...' if lang == 'pt' else 'Waiting for host...' }}
             </p>

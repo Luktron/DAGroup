@@ -370,6 +370,16 @@ function renderGameOver() {
         }
         title.style.color = 'var(--accent-cyan)';
         SoundFX.victory();
+    } else if (winner === 'assassin_accuse') {
+        if (LANG === 'pt') {
+            title.innerHTML = `🔪 O Assassino venceu!`;
+            msg.innerHTML = `O Detetive <strong style="color: var(--accent-cyan)">${detectiveName}</strong> acusou a pessoa errada. O Assassino era <strong style="color: var(--accent-red)">${assassinName}</strong>.`;
+        } else {
+            title.innerHTML = `🔪 The Assassin wins!`;
+            msg.innerHTML = `Detective <strong style="color: var(--accent-cyan)">${detectiveName}</strong> accused the wrong person. The Assassin was <strong style="color: var(--accent-red)">${assassinName}</strong>.`;
+        }
+        title.style.color = 'var(--accent-red)';
+        SoundFX.gameOver();
     } else {
         if (LANG === 'pt') {
             title.innerHTML = `🔪 O Assassino venceu!`;

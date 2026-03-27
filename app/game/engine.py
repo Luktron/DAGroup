@@ -401,20 +401,23 @@ class GameRoom:
                 "assassin_name": suspect.name,
             }
         else:
-            # Wrong! Penalty
+            # Wrong! Assassin wins immediately
             detective.wrong_accusations += 1
-            if CONFIG.FALSE_ACCUSATION_PENALTY == "die":
-                detective.status = PlayerStatus.DEAD
-                result_msg = "died"
-            else:
-                detective.has_power = False
-                result_msg = "power_lost"
+            detective.status = PlayerStatus.DEAD
+            self.end_game("assassin_accuse")
+
+            # Find the real assassin name
+            assassin = next(
+                (p for p in self.players.values() if p.role == RoleType.ASSASSIN),
+                None,
+            )
 
             return {
                 "success": True,
                 "correct": False,
-                "message": result_msg,
+                "message": "died",
                 "accused_name": suspect.name,
+                "assassin_name": assassin.name if assassin else "?",
             }
 
     def player_look(self, looker_id: str, target_id: str) -> dict:
