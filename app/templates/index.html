@@ -35,6 +35,21 @@
                            required maxlength="20" autocomplete="off" class="input-neon">
                 </div>
                 <div class="input-group">
+                    <label>{{ 'Gênero' if lang == 'pt' else 'Gender' }}</label>
+                    <div class="gender-toggle">
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="m" checked>
+                            <span class="gender-icon">⚽🧑</span>
+                            <span>{{ 'Masculino' if lang == 'pt' else 'Male' }}</span>
+                        </label>
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="f">
+                            <span class="gender-icon">⚽👩</span>
+                            <span>{{ 'Feminino' if lang == 'pt' else 'Female' }}</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="input-group">
                     <label for="max-players">{{ t.players }} ({{ config.MIN_PLAYERS }}-{{ config.MAX_PLAYERS }})</label>
                     <div class="player-counter">
                         <button type="button" class="btn-counter" onclick="adjustPlayers(-1)">−</button>
@@ -62,6 +77,21 @@
                     <input type="text" id="join-name" name="player_name"
                            placeholder="{{ 'Digite seu nome...' if lang == 'pt' else 'Enter your name...' }}"
                            required maxlength="20" autocomplete="off" class="input-neon">
+                </div>
+                <div class="input-group">
+                    <label>{{ 'Gênero' if lang == 'pt' else 'Gender' }}</label>
+                    <div class="gender-toggle">
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="m" checked>
+                            <span class="gender-icon">⚽🧑</span>
+                            <span>{{ 'Masculino' if lang == 'pt' else 'Male' }}</span>
+                        </label>
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="f">
+                            <span class="gender-icon">⚽👩</span>
+                            <span>{{ 'Feminino' if lang == 'pt' else 'Female' }}</span>
+                        </label>
+                    </div>
                 </div>
                 <div class="input-group">
                     <label for="room-code">{{ t.room_code }}</label>

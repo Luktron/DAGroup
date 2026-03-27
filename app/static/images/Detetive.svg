@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Hat brim -->
+  <ellipse cx="50" cy="30" rx="32" ry="8" fill="#5d4037"/>
+  <!-- Hat top -->
+  <path d="M28 30 Q28 12 50 10 Q72 12 72 30" fill="#6d4c41"/>
+  <rect x="38" y="25" width="24" height="5" rx="2" fill="#4e342e"/>
+  <!-- Face -->
+  <circle cx="50" cy="48" r="18" fill="#FFCC80"/>
+  <!-- Eyes -->
+  <circle cx="43" cy="45" r="3" fill="#fff"/>
+  <circle cx="57" cy="45" r="3" fill="#fff"/>
+  <circle cx="43" cy="45" r="1.8" fill="#1565c0"/>
+  <circle cx="57" cy="45" r="1.8" fill="#1565c0"/>
+  <!-- Eyebrows (shrewd) -->
+  <path d="M38 40 Q43 37 48 40" fill="none" stroke="#4e342e" stroke-width="1.5"/>
+  <path d="M52 40 Q57 37 62 40" fill="none" stroke="#4e342e" stroke-width="1.5"/>
+  <!-- Nose & mouth -->
+  <ellipse cx="50" cy="52" rx="2" ry="1.5" fill="#e6a84d"/>
+  <path d="M45 57 Q50 60 55 57" fill="none" stroke="#795548" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Coat -->
+  <path d="M30 65 Q35 62 50 62 Q65 62 70 65 L72 90 L28 90 Z" fill="#455a64"/>
+  <line x1="50" y1="62" x2="50" y2="88" stroke="#37474f" stroke-width="1.5"/>
+  <!-- Magnifying glass -->
+  <circle cx="78" cy="72" r="10" fill="none" stroke="#00e5ff" stroke-width="3"/>
+  <circle cx="78" cy="72" r="7" fill="rgba(0,229,255,0.15)"/>
+  <line x1="85" y1="79" x2="92" y2="86" stroke="#00e5ff" stroke-width="3" stroke-linecap="round"/>
+</svg>

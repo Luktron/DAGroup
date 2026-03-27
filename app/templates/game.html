@@ -43,6 +43,9 @@
             <span class="tension-meter" id="tensionMeter">
                 <span class="tension-fill" id="tensionFill"></span>
             </span>
+            <button class="btn-exit" onclick="leaveGame()" title="{{ 'Sair da partida' if lang == 'pt' else 'Leave game' }}">
+                ✕
+            </button>
         </div>
     </header>
 
@@ -65,23 +68,27 @@
     <footer class="game-footer">
         <!-- Role-specific actions -->
         <div class="action-bar" id="actionBar"></div>
+    </footer>
 
-        <!-- Chat -->
-        <div class="chat-container" id="chatContainer">
-            <div class="chat-toggle" onclick="toggleChat()">
-                💬 <span class="chat-badge hidden" id="chatBadge">0</span>
+    <!-- Chat — fixed bottom-right -->
+    <div class="chat-fixed" id="chatContainer">
+        <div class="chat-toggle" onclick="toggleChat()">
+            💬 <span class="chat-badge hidden" id="chatBadge">0</span>
+        </div>
+        <div class="chat-panel hidden" id="chatPanel">
+            <div class="chat-panel-header">
+                <span>💬 Chat</span>
+                <button class="chat-close-btn" onclick="toggleChat()">✕</button>
             </div>
-            <div class="chat-panel hidden" id="chatPanel">
-                <div class="chat-messages" id="chatMessages"></div>
-                <div class="chat-input-row">
-                    <input type="text" id="chatInput" maxlength="200"
-                           placeholder="{{ 'Mensagem...' if lang == 'pt' else 'Message...' }}"
-                           autocomplete="off">
-                    <button onclick="sendChat()" class="btn btn-sm">{{ t.send }}</button>
-                </div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input-row">
+                <input type="text" id="chatInput" maxlength="200"
+                       placeholder="{{ 'Mensagem...' if lang == 'pt' else 'Message...' }}"
+                       autocomplete="off">
+                <button onclick="sendChat()" class="btn btn-sm">{{ t.send }}</button>
             </div>
         </div>
-    </footer>
+    </div>
 
     <!-- Event log (bottom-left subtle) -->
     <div class="event-log" id="eventLog"></div>
@@ -92,9 +99,12 @@
             <h2 id="gameOverTitle"></h2>
             <p id="gameOverMessage"></p>
             <div id="gameOverStats"></div>
-            <button class="btn btn-primary btn-glow" id="btnPlayAgain" onclick="playAgain()">
+            <button class="btn btn-primary btn-glow" id="btnPlayAgain" onclick="playAgain()" style="display:none">
                 <span>🔄</span> {{ t.play_again }}
             </button>
+            <p id="waitingHostMsg" style="display:none; color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">
+                {{ 'Aguardando o anfitrião...' if lang == 'pt' else 'Waiting for host...' }}
+            </p>
         </div>
     </div>
 </div>

@@ -18,6 +18,7 @@ ai_mgr = AIManager()
 
 # Inject into route modules
 lobby.game_manager = game_mgr
+lobby.ai_manager = ai_mgr
 game.game_manager = game_mgr
 game.ai_manager = ai_mgr
 
@@ -29,6 +30,7 @@ app = FastAPI(
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/images", StaticFiles(directory="app/images"), name="images")
 
 # Include routers
 app.include_router(lobby.router)

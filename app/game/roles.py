@@ -29,6 +29,7 @@ class Player:
     status: PlayerStatus = PlayerStatus.ALIVE
     is_ai: bool = False
     avatar_color: str = "#6C63FF"
+    gender: str = "m"  # "m" or "f"
 
     # Cooldown tracking (timestamps)
     last_action_time: float = 0.0
@@ -50,6 +51,17 @@ class Player:
     correct_accusations: int = 0
     wrong_accusations: int = 0
 
+    def get_icon(self) -> str:
+        """Return the icon image path based on role and gender."""
+        if self.role == RoleType.ASSASSIN:
+            return "/images/Assassino.png"
+        if self.role == RoleType.DETECTIVE:
+            return "/images/Detetive.png"
+        # Victim or no role yet
+        if self.gender == "f":
+            return "/images/JogadorFeminina.png"
+        return "/images/JogadorMasculina.png"
+
     def to_public_dict(self) -> dict:
         """Return public info (no role revealed)."""
         return {
@@ -58,6 +70,7 @@ class Player:
             "status": self.status.value,
             "is_ai": self.is_ai,
             "avatar_color": self.avatar_color,
+            "gender": self.gender,
             "suspicion_score": round(self.suspicion_score, 2),
         }
 
@@ -69,6 +82,7 @@ class Player:
             "has_power": self.has_power,
             "investigations_used": self.investigations_used,
             "kills": self.kills,
+            "icon": self.get_icon(),
         }
 
     def to_detective_view(self) -> dict:
@@ -79,6 +93,12 @@ class Player:
             "recent_looks": self.look_targets[-5:],
             "action_count": self.action_count,
         }
+
+    def get_public_icon(self) -> str:
+        """Return icon for public view (no role reveal — uses gender only)."""
+        if self.gender == "f":
+            return "/images/JogadorFeminina.png"
+        return "/images/JogadorMasculina.png"
 
 
 AVATAR_COLORS = [

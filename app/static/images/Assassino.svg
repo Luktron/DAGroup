@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Dark hood / cloak -->
+  <path d="M20 85 Q20 30 50 15 Q80 30 80 85 Z" fill="#1a1a2e"/>
+  <path d="M25 85 Q25 35 50 22 Q75 35 75 85 Z" fill="#16213e"/>
+  <!-- Face (pale/ghostly) -->
+  <ellipse cx="50" cy="50" rx="18" ry="22" fill="#e0ddd5"/>
+  <!-- Menacing eyes -->
+  <path d="M37 44 L44 40 L44 48 Z" fill="#ff1744"/>
+  <path d="M63 44 L56 40 L56 48 Z" fill="#ff1744"/>
+  <!-- Eye glow -->
+  <circle cx="42" cy="44" r="2" fill="#ff5252" opacity="0.8"/>
+  <circle cx="58" cy="44" r="2" fill="#ff5252" opacity="0.8"/>
+  <!-- Sinister smile -->
+  <path d="M40 58 Q45 65 50 58 Q55 65 60 58" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Knife -->
+  <rect x="72" y="55" width="3" height="22" rx="1" fill="#888"/>
+  <polygon points="73.5,55 69,40 78,40" fill="#ccc" stroke="#888" stroke-width="0.5"/>
+  <rect x="70" y="54" width="7" height="4" rx="1" fill="#4a3728"/>
+</svg>

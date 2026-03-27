@@ -93,7 +93,7 @@ class AIBot:
         """AI assassin: look around to bluff, then kill strategically."""
         player = self.player
         alive = self.room.get_alive_players()
-        targets = [p for p in alive if p.id != self.player_id]
+        targets = [p for p in alive if p.id != self.player_id and p.role != RoleType.DETECTIVE]
 
         if not targets:
             return
@@ -125,11 +125,8 @@ class AIBot:
     def _choose_kill_target(self, targets: list):
         """Choose kill target based on personality."""
         if self.personality == AIPersonality.AGGRESSIVE:
-            # Go for detective first
-            detective = next((t for t in targets if t.role == RoleType.DETECTIVE), None)
-            if detective:
-                return detective
-            return random.choice(targets)
+            # Pick a random victim (detective is already excluded from targets)
+            return random.choice(targets) if targets else None
         elif self.personality == AIPersonality.CALCULATED:
             # Avoid killing the person you just looked at
             player = self.player
@@ -225,7 +222,7 @@ class AIManager:
                 p.name for p in room.players.values()
             }]) if len(room.players) < len(AI_NAMES) else f"Bot-{len(room.players)+1}"
 
-            player = room.add_player(bot_id, name, is_ai=True)
+            player = room.add_player(bot_id, name, is_ai=True, gender=random.choice(["m", "f"]))
             if player:
                 bot = AIBot(room, bot_id)
                 if room.room_code not in self.bots:
@@ -248,7 +245,7 @@ class AIManager:
         name = f"{player.name} (Bot)"
 
         room.remove_player(leaving_player_id)
-        new_player = room.add_player(bot_id, name, is_ai=True)
+        new_player = room.add_player(bot_id, name, is_ai=True, gender=player.gender)
         if new_player:
             new_player.role = role
             new_player.status = status

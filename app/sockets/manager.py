@@ -29,7 +29,13 @@ class ConnectionManager:
         self.player_rooms[player_id] = room_code
         self.connections[player_id] = ws
 
-    def disconnect(self, player_id: str):
+    def disconnect(self, player_id: str, ws: WebSocket | None = None):
+        """Disconnect a player. If ws is provided, only remove if it matches
+        the current stored connection (prevents race conditions on reload)."""
+        stored_ws = self.connections.get(player_id)
+        if ws is not None and stored_ws is not ws:
+            # A newer connection replaced this one — don't remove it
+            return None
         room_code = self.player_rooms.pop(player_id, None)
         self.connections.pop(player_id, None)
         if room_code and room_code in self.rooms:
@@ -44,33 +50,33 @@ class ConnectionManager:
             try:
                 await ws.send_json(data)
             except Exception:
-                self.disconnect(player_id)
+                self.disconnect(player_id, ws)
 
     async def broadcast_to_room(self, room_code: str, data: dict, exclude: str | None = None):
-        connections = self.rooms.get(room_code, {})
+        connections = list(self.rooms.get(room_code, {}).items())
         disconnected = []
-        for pid, ws in connections.items():
+        for pid, ws in connections:
             if pid == exclude:
                 continue
             try:
                 await ws.send_json(data)
             except Exception:
-                disconnected.append(pid)
-        for pid in disconnected:
-            self.disconnect(pid)
+                disconnected.append((pid, ws))
+        for pid, ws in disconnected:
+            self.disconnect(pid, ws)
 
     async def broadcast_state(self, room_code: str, game_room):
         """Send personalized game state to each player in the room."""
-        connections = self.rooms.get(room_code, {})
+        connections = list(self.rooms.get(room_code, {}).items())
         disconnected = []
-        for pid, ws in connections.items():
+        for pid, ws in connections:
             try:
                 state = game_room.get_state_for_player(pid)
                 await ws.send_json({"type": "state_update", "state": state})
             except Exception:
-                disconnected.append(pid)
-        for pid in disconnected:
-            self.disconnect(pid)
+                disconnected.append((pid, ws))
+        for pid, ws in disconnected:
+            self.disconnect(pid, ws)
 
     def get_room_player_ids(self, room_code: str) -> list[str]:
         return list(self.rooms.get(room_code, {}).keys())

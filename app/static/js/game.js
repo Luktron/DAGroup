@@ -11,6 +11,50 @@ let chatOpen = false;
 let unreadChat = 0;
 let cooldowns = { kill: 0, investigate: 0 };
 let cooldownTimers = {};
+let chatHistory = [];  // In-memory chat history
+
+// ─── Chat Persistence ───────────────────────────────────────────
+function getChatStorageKey() {
+    return `chat_history_${ROOM_CODE}`;
+}
+
+function saveChatHistory() {
+    try {
+        sessionStorage.setItem(getChatStorageKey(), JSON.stringify(chatHistory));
+    } catch (_) { /* quota exceeded — ignore */ }
+}
+
+function loadChatHistory() {
+    try {
+        const saved = sessionStorage.getItem(getChatStorageKey());
+        if (saved) {
+            chatHistory = JSON.parse(saved);
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = '';
+            chatHistory.forEach(msg => appendChatBubble(msg, false));
+            container.scrollTop = container.scrollHeight;
+        }
+    } catch (_) { /* corrupt data — ignore */ }
+}
+
+function appendChatBubble(msg, save) {
+    const container = document.getElementById('chatMessages');
+    const msgEl = document.createElement('div');
+    msgEl.className = 'chat-msg';
+    const iconHtml = msg.icon
+        ? `<img src="${escapeHtml(msg.icon)}" class="chat-msg-icon" alt="">`
+        : '';
+    msgEl.innerHTML = `
+        ${iconHtml}
+        <span class="chat-msg-name" style="color: ${escapeHtml(msg.color)}">${escapeHtml(msg.name)}:</span>
+        <span class="chat-msg-text">${escapeHtml(msg.text)}</span>`;
+    container.appendChild(msgEl);
+    container.scrollTop = container.scrollHeight;
+    if (save) {
+        chatHistory.push(msg);
+        saveChatHistory();
+    }
+}
 
 // ─── Init ────────────────────────────────────────────────────────
 function initGame(opts) {
@@ -20,19 +64,25 @@ function initGame(opts) {
     T = opts.translations;
     CFG = opts.config;
 
+    loadChatHistory();
+    showLoading();
     connectWebSocket();
     setupKeyboard();
     startCooldownTicker();
 }
 
 // ─── WebSocket ───────────────────────────────────────────────────
+let _pingInterval = null;
+
 function connectWebSocket() {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${proto}//${location.host}/ws/${ROOM_CODE}/${PLAYER_ID}`);
 
     ws.onopen = () => {
+        // Clear previous ping interval if any
+        if (_pingInterval) clearInterval(_pingInterval);
         // Keep-alive ping
-        setInterval(() => {
+        _pingInterval = setInterval(() => {
             if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'ping' }));
             }
@@ -44,8 +94,20 @@ function connectWebSocket() {
         handleMessage(data);
     };
 
-    ws.onclose = () => {
-        setTimeout(connectWebSocket, 3000);
+    ws.onerror = () => {
+        // Connection error — will trigger onclose
+    };
+
+    ws.onclose = (e) => {
+        if (_pingInterval) { clearInterval(_pingInterval); _pingInterval = null; }
+        if (e.code === 4001) {
+            // Player not found in room — redirect to homepage
+            window.location.href = '/';
+            return;
+        }
+        // Normal disconnect — try reconnecting
+        showLoading();
+        setTimeout(connectWebSocket, 2000);
     };
 }
 
@@ -79,6 +141,19 @@ function handleMessage(data) {
             break;
         case 'game_restarted':
             selectedTarget = null;
+            // Clear chat for new round
+            chatHistory = [];
+            saveChatHistory();
+            document.getElementById('chatMessages').innerHTML = '';
+            break;
+        case 'victim_report_broadcast':
+            handleVictimReport(data);
+            break;
+        case 'victim_hint':
+            handleVictimHintReceived(data);
+            break;
+        case 'hint_sent':
+            // Confirmation already shown via showFeedback in submitHint
             break;
         case 'accuse_error':
             showFeedback(data.result.error, 'error');
@@ -100,35 +175,30 @@ function handleMessage(data) {
 // ─── Render ──────────────────────────────────────────────────────
 function renderGame() {
     if (!gameState) return;
+    hideLoading();
     const me = gameState.me;
 
-    // Phase check
+    // Always render players and header so they stay visible
+    renderHeader(me);
+    renderPlayerCircle(me);
+    renderActionBar(me);
+    updateTension(gameState.tension);
+    updateBlackout(gameState.is_blackout);
+    renderRecentEvents(gameState.recent_events);
+
+    // Phase check — show game over overlay on top
     if (gameState.phase === 'finished') {
         renderGameOver();
-        return;
     }
-
-    // Header
-    renderHeader(me);
-    // Player circle
-    renderPlayerCircle(me);
-    // Action bar
-    renderActionBar(me);
-    // Tension overlay
-    updateTension(gameState.tension);
-    // Blackout
-    updateBlackout(gameState.is_blackout);
-    // Events
-    renderRecentEvents(gameState.recent_events);
 }
 
 function renderHeader(me) {
     const roleEl = document.getElementById('roleReveal');
     const roleClass = `role-${me.role}`;
     const roleName = T[me.role] || me.role;
-    const roleIcon = me.role === 'assassin' ? '🔪' : me.role === 'detective' ? '🕵️' : '😊';
+    const roleIconSrc = getRoleIcon(me.role, me.gender);
     roleEl.className = `role-reveal ${roleClass}`;
-    roleEl.innerHTML = `${roleIcon} ${T.you_are}: ${roleName}`;
+    roleEl.innerHTML = `<img src="${roleIconSrc}" class="role-header-icon" alt=""> ${T.you_are}: ${roleName}`;
 
     document.getElementById('roundBadge').textContent = `${T.round} ${gameState.round}`;
     document.getElementById('aliveBadge').textContent = `${gameState.alive_count}/${gameState.player_count} ${T.alive}`;
@@ -162,10 +232,11 @@ function renderPlayerCircle(me) {
             suspectClass,
         ].filter(Boolean).join(' ');
 
-        const avatarClass = isDead ? 'node-avatar dead-avatar' : 'node-avatar';
-        const initial = p.name ? p.name.charAt(0).toUpperCase() : '?';
         const aiTag = p.is_ai ? ' 🤖' : '';
         const statusIcon = isDead ? '<span class="node-status-icon">💀</span>' : '';
+
+        // Use role icon for self, gender icon for others
+        const iconSrc = p.icon || getGenderIcon(p.gender);
 
         // Suspicion bar (detective only)
         let suspicionBar = '';
@@ -183,8 +254,8 @@ function renderPlayerCircle(me) {
 
         html += `
             <div class="${classes}" ${onclick} data-pid="${p.id}">
-                <div class="${avatarClass}" style="background: ${p.avatar_color}">
-                    ${isDead ? '' : initial}
+                <div class="node-avatar ${isDead ? 'dead-avatar' : ''}" style="background: ${p.avatar_color}">
+                    <img src="${escapeHtml(iconSrc)}" alt="" class="avatar-icon">
                     ${statusIcon}
                 </div>
                 <span class="node-name">${escapeHtml(p.name)}${aiTag}</span>
@@ -193,6 +264,18 @@ function renderPlayerCircle(me) {
     });
 
     circle.innerHTML = html;
+}
+
+function getGenderIcon(gender) {
+    return gender === 'f'
+        ? '/images/JogadorFeminina.png'
+        : '/images/JogadorMasculina.png';
+}
+
+function getRoleIcon(role, gender) {
+    if (role === 'assassin') return '/images/Assassino.png';
+    if (role === 'detective') return '/images/Detetive.png';
+    return getGenderIcon(gender);
 }
 
 function renderActionBar(me) {
@@ -228,6 +311,17 @@ function renderActionBar(me) {
         html += `<span style="color: var(--accent-red)">❌ ${T.power_lost}</span>`;
     }
 
+    // Victim-specific: report suspicious behavior + send hint to detective
+    if (me.role === 'victim') {
+        html += `
+            <button class="action-btn action-report" onclick="openReportModal()" ${!hasTarget ? 'disabled' : ''}>
+                🚨 ${LANG === 'pt' ? 'Reportar' : 'Report'}
+            </button>
+            <button class="action-btn action-hint" onclick="openHintModal()" ${!hasTarget ? 'disabled' : ''}>
+                💡 ${LANG === 'pt' ? 'Dica p/ Detetive' : 'Hint to Detective'}
+            </button>`;
+    }
+
     // Everyone can look
     html += `
         <button class="action-btn action-look" onclick="doLook()" ${!hasTarget ? 'disabled' : ''}>
@@ -249,31 +343,73 @@ function renderGameOver() {
 
     overlay.classList.remove('hidden');
 
+    // Find the roles (revealed at game end)
+    const assassin = gameState.players.find(p => p.role === 'assassin');
+    const detective = gameState.players.find(p => p.role === 'detective');
+    const assassinName = assassin ? escapeHtml(assassin.name) : '?';
+    const detectiveName = detective ? escapeHtml(detective.name) : '?';
+
     const winner = gameState.winner;
-    if (winner === 'detective') {
-        title.innerHTML = `🕵️ ${T.detective_wins}`;
+    if (winner === 'detective' || winner === 'detective_auto') {
+        if (winner === 'detective_auto') {
+            if (LANG === 'pt') {
+                title.innerHTML = `🕵️ O Detetive venceu automaticamente!`;
+                msg.innerHTML = `O Detetive <strong style="color: var(--accent-cyan)">${detectiveName}</strong> venceu, pois o Assassino tentou matá-lo.`;
+            } else {
+                title.innerHTML = `🕵️ The Detective wins automatically!`;
+                msg.innerHTML = `Detective <strong style="color: var(--accent-cyan)">${detectiveName}</strong> won because the Assassin tried to kill them.`;
+            }
+        } else {
+            if (LANG === 'pt') {
+                title.innerHTML = `🕵️ O Detetive venceu!`;
+                msg.innerHTML = `O Detetive <strong style="color: var(--accent-cyan)">${detectiveName}</strong> prendeu o Assassino: <strong style="color: var(--accent-red)">${assassinName}</strong>.`;
+            } else {
+                title.innerHTML = `🕵️ The Detective wins!`;
+                msg.innerHTML = `Detective <strong style="color: var(--accent-cyan)">${detectiveName}</strong> arrested the Assassin: <strong style="color: var(--accent-red)">${assassinName}</strong>.`;
+            }
+        }
         title.style.color = 'var(--accent-cyan)';
         SoundFX.victory();
     } else {
-        title.innerHTML = `🔪 ${T.assassin_wins}`;
+        if (LANG === 'pt') {
+            title.innerHTML = `🔪 O Assassino venceu!`;
+            msg.innerHTML = `O Assassino <strong style="color: var(--accent-red)">${assassinName}</strong> matou todas as vítimas.`;
+        } else {
+            title.innerHTML = `🔪 The Assassin wins!`;
+            msg.innerHTML = `Assassin <strong style="color: var(--accent-red)">${assassinName}</strong> eliminated all victims.`;
+        }
         title.style.color = 'var(--accent-red)';
         SoundFX.gameOver();
     }
 
-    // Find the roles
-    const assassin = gameState.players.find(p => p.role === 'assassin');
-    const detective = gameState.players.find(p => p.role === 'detective');
-
-    msg.innerHTML = `
-        ${T.assassin}: <strong style="color: var(--accent-red)">${assassin ? escapeHtml(assassin.name) : '?'}</strong><br>
-        ${T.detective}: <strong style="color: var(--accent-cyan)">${detective ? escapeHtml(detective.name) : '?'}</strong>
-    `;
+    // Show all roles with icons
+    let statsHtml = '<div style="margin-top: 0.8rem; text-align: left; font-size: 0.85rem;">';
+    gameState.players.forEach(p => {
+        const roleName = T[p.role] || p.role || '?';
+        const icon = p.icon || getGenderIcon(p.gender);
+        const statusIcon = p.status === 'dead' ? ' 💀' : '';
+        const roleColor = p.role === 'assassin' ? 'var(--accent-red)'
+                        : p.role === 'detective' ? 'var(--accent-cyan)'
+                        : 'var(--accent-green)';
+        statsHtml += `<div style="display:flex; align-items:center; gap:0.4rem; margin:0.3rem 0;">
+            <img src="${escapeHtml(icon)}" style="width:24px;height:24px;border-radius:50%;">
+            <span>${escapeHtml(p.name)}${statusIcon}</span>
+            <span style="color:${roleColor}; font-weight:600; margin-left:auto;">${roleName}</span>
+        </div>`;
+    });
+    statsHtml += '</div>';
+    stats.innerHTML = statsHtml;
 
     const me = gameState.me;
-    const isCreator = gameState.players.length > 0;
     const btnPlay = document.getElementById('btnPlayAgain');
-    // Show play again for all players
-    btnPlay.style.display = 'inline-flex';
+    const waitingMsg = document.getElementById('waitingHostMsg');
+    if (gameState.is_creator) {
+        btnPlay.style.display = 'inline-flex';
+        if (waitingMsg) waitingMsg.style.display = 'none';
+    } else {
+        btnPlay.style.display = 'none';
+        if (waitingMsg) waitingMsg.style.display = 'block';
+    }
 }
 
 // ─── Actions ─────────────────────────────────────────────────────
@@ -325,9 +461,23 @@ function playAgain() {
     document.getElementById('gameOverOverlay').classList.add('hidden');
 }
 
+function leaveGame() {
+    const msg = LANG === 'pt'
+        ? 'Você realmente deseja sair da partida?'
+        : 'Do you really want to leave the game?';
+    if (confirm(msg)) {
+        send({ type: 'leave_game' });
+        window.location.href = '/';
+    }
+}
+
 // ─── Result Handlers ─────────────────────────────────────────────
 function handleKillResult(result) {
-    if (result.success) {
+    if (result.detective_auto_win) {
+        showFeedback(LANG === 'pt'
+            ? '🕵️ O Detetive venceu automaticamente!'
+            : '🕵️ The Detective wins automatically!', 'error');
+    } else if (result.success) {
         showFeedback(`🔪 ${LANG === 'pt' ? 'Alvo marcado...' : 'Target marked...'}`, 'kill');
     } else if (result.error === 'cooldown') {
         showFeedback(`⏳ ${T.cooldown_active} (${result.remaining}s)`, 'error');
@@ -411,14 +561,12 @@ function handleLookEvent(data) {
 }
 
 function handleChatMessage(data) {
-    const container = document.getElementById('chatMessages');
-    const msgEl = document.createElement('div');
-    msgEl.className = 'chat-msg';
-    msgEl.innerHTML = `
-        <span class="chat-msg-name" style="color: ${data.avatar_color}">${escapeHtml(data.player_name)}:</span>
-        <span class="chat-msg-text">${escapeHtml(data.message)}</span>`;
-    container.appendChild(msgEl);
-    container.scrollTop = container.scrollHeight;
+    appendChatBubble({
+        name: data.player_name,
+        color: data.avatar_color,
+        text: data.message,
+        icon: data.icon || null,
+    }, true);
 
     if (!chatOpen) {
         unreadChat++;
@@ -430,6 +578,23 @@ function handleChatMessage(data) {
 }
 
 // ─── UI Helpers ──────────────────────────────────────────────────
+function showLoading() {
+    let el = document.getElementById('loadingOverlay');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'loadingOverlay';
+        el.className = 'loading-overlay';
+        el.innerHTML = `<div class="loading-spinner"></div><p>${LANG === 'pt' ? 'Conectando...' : 'Connecting...'}</p>`;
+        document.getElementById('gameContainer').appendChild(el);
+    }
+    el.classList.remove('hidden');
+}
+
+function hideLoading() {
+    const el = document.getElementById('loadingOverlay');
+    if (el) el.classList.add('hidden');
+}
+
 function showFeedback(text, type) {
     const container = document.getElementById('actionFeedback');
     const toast = document.createElement('div');
@@ -452,6 +617,52 @@ function addEventLog(text, type) {
         log.removeChild(log.firstChild);
     }
     log.scrollTop = log.scrollHeight;
+}
+
+function handleVictimReport(data) {
+    // Show report as a system message in chat so detective and others can see it
+    const reportLabel = LANG === 'pt' ? 'REPORTE' : 'REPORT';
+    appendChatBubble({
+        name: `🚨 ${reportLabel}`,
+        color: '#43E97B',
+        text: `${data.reporter_name} → ${data.target_name}: "${data.reason}"`
+    }, true);
+
+    // Also log it to event log
+    addEventLog(`🚨 ${data.reporter_name} → ${data.target_name}`, 'report');
+
+    if (!chatOpen) {
+        unreadChat++;
+        const badge = document.getElementById('chatBadge');
+        badge.textContent = unreadChat;
+        badge.classList.remove('hidden');
+    }
+    SoundFX.chat();
+}
+
+function handleVictimHintReceived(data) {
+    // This is only received by the detective — show as a private hint in chat
+    const hintLabel = LANG === 'pt' ? 'DICA' : 'HINT';
+    const aboutText = data.target_name
+        ? (LANG === 'pt' ? ` sobre ${data.target_name}` : ` about ${data.target_name}`)
+        : '';
+    appendChatBubble({
+        name: `💡 ${hintLabel} (${data.from_name})`,
+        color: '#00C9FF',
+        text: `${data.hint}${aboutText}`,
+        icon: data.icon || null,
+    }, true);
+
+    // Also show as a toast so detective doesn't miss it
+    showFeedback(`💡 ${data.from_name}: "${data.hint}"`, 'success');
+
+    if (!chatOpen) {
+        unreadChat++;
+        const badge = document.getElementById('chatBadge');
+        badge.textContent = unreadChat;
+        badge.classList.remove('hidden');
+    }
+    SoundFX.chat();
 }
 
 function updateTension(level) {
@@ -485,7 +696,18 @@ function toggleChat() {
         panel.classList.remove('hidden');
         unreadChat = 0;
         document.getElementById('chatBadge').classList.add('hidden');
-        document.getElementById('chatInput').focus();
+        const input = document.getElementById('chatInput');
+        const sendBtn = panel.querySelector('.chat-input-row button');
+        if (gameState && gameState.me && gameState.me.status === 'dead') {
+            input.disabled = true;
+            input.placeholder = LANG === 'pt' ? 'Espectadores não podem falar' : 'Spectators cannot chat';
+            if (sendBtn) sendBtn.disabled = true;
+        } else {
+            input.disabled = false;
+            input.placeholder = LANG === 'pt' ? 'Mensagem...' : 'Message...';
+            if (sendBtn) sendBtn.disabled = false;
+            input.focus();
+        }
     } else {
         panel.classList.add('hidden');
     }
@@ -499,10 +721,181 @@ function sendChat() {
     input.value = '';
 }
 
+// ─── Victim Report System ────────────────────────────────────────
+function openReportModal() {
+    if (!selectedTarget || !gameState) return;
+    const targetName = getPlayerName(selectedTarget);
+
+    const reportReasons = LANG === 'pt'
+        ? [
+            'Está agindo de forma suspeita',
+            'Estava olhando muito para alguém',
+            'Evita contato visual',
+            'Comportamento estranho após uma morte',
+            'Parece nervoso(a)'
+          ]
+        : [
+            'Acting suspiciously',
+            'Staring at someone a lot',
+            'Avoiding eye contact',
+            'Strange behavior after a death',
+            'Seems nervous'
+          ];
+
+    const overlay = document.createElement('div');
+    overlay.className = 'report-modal-overlay';
+    overlay.id = 'reportModalOverlay';
+
+    const title = LANG === 'pt'
+        ? `🚨 Reportar ${escapeHtml(targetName)}`
+        : `🚨 Report ${escapeHtml(targetName)}`;
+    const cancelText = LANG === 'pt' ? 'Cancelar' : 'Cancel';
+
+    let optionsHtml = reportReasons.map((reason, i) =>
+        `<button class="report-option" data-reason="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`
+    ).join('');
+
+    overlay.innerHTML = `
+        <div class="report-modal">
+            <h3>${title}</h3>
+            <div class="report-options">${optionsHtml}</div>
+            <button class="btn btn-ghost btn-sm" data-action="cancel">${cancelText}</button>
+        </div>`;
+
+    document.body.appendChild(overlay);
+
+    // Delegate click events (avoids inline JS / XSS)
+    overlay.addEventListener('click', (e) => {
+        const reasonBtn = e.target.closest('[data-reason]');
+        if (reasonBtn) { submitReport(reasonBtn.dataset.reason); return; }
+        if (e.target.closest('[data-action="cancel"]')) { closeReportModal(); return; }
+        if (e.target === overlay) closeReportModal();
+    });
+
+}
+
+function closeReportModal() {
+    const overlay = document.getElementById('reportModalOverlay');
+    if (overlay) overlay.remove();
+}
+
+function submitReport(reason) {
+    if (!selectedTarget) return;
+    send({
+        type: 'victim_report',
+        target_id: selectedTarget,
+        reason: reason
+    });
+    const feedbackText = LANG === 'pt' ? '🚨 Reporte enviado!' : '🚨 Report sent!';
+    showFeedback(feedbackText, 'success');
+    closeReportModal();
+    selectedTarget = null;
+    if (gameState) {
+        renderPlayerCircle(gameState.me);
+        renderActionBar(gameState.me);
+    }
+}
+
 function getPlayerName(pid) {
     if (!gameState) return pid;
     const p = gameState.players.find(pl => pl.id === pid);
     return p ? p.name : pid;
+}
+
+// ─── Victim Hint System ──────────────────────────────────────────
+function openHintModal() {
+    if (!selectedTarget || !gameState) return;
+    const targetName = getPlayerName(selectedTarget);
+
+    const hints = LANG === 'pt'
+        ? [
+            'Acho que essa pessoa é o assassino',
+            'Essa pessoa está agindo de forma estranha',
+            'Essa pessoa evita contato visual',
+            'Vi algo suspeito sobre essa pessoa',
+            'Fique de olho nessa pessoa'
+          ]
+        : [
+            'I think this person is the assassin',
+            'This person is acting strangely',
+            'This person avoids eye contact',
+            'I saw something suspicious about them',
+            'Keep an eye on this person'
+          ];
+
+    const overlay = document.createElement('div');
+    overlay.className = 'report-modal-overlay';
+    overlay.id = 'hintModalOverlay';
+
+    const title = LANG === 'pt'
+        ? `💡 Dica sobre ${escapeHtml(targetName)}`
+        : `💡 Hint about ${escapeHtml(targetName)}`;
+    const cancelText = LANG === 'pt' ? 'Cancelar' : 'Cancel';
+    const customLabel = LANG === 'pt' ? 'Dica personalizada:' : 'Custom hint:';
+    const sendText = LANG === 'pt' ? 'Enviar' : 'Send';
+
+    let optionsHtml = hints.map(h =>
+        `<button class="report-option" data-hint="${escapeHtml(h)}">${escapeHtml(h)}</button>`
+    ).join('');
+
+    overlay.innerHTML = `
+        <div class="report-modal">
+            <h3>${title}</h3>
+            <div class="report-options">${optionsHtml}</div>
+            <div style="margin-top: 0.5rem;">
+                <label style="font-size: 0.8rem; color: var(--text-secondary)">${customLabel}</label>
+                <div style="display:flex; gap:0.3rem; margin-top:0.3rem;">
+                    <input type="text" id="customHintInput" maxlength="200" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.4rem 0.8rem; color:var(--text-primary); font-size:0.85rem;">
+                    <button class="btn btn-primary btn-sm" data-action="send-custom">${sendText}</button>
+                </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" data-action="cancel" style="margin-top:0.5rem;">${cancelText}</button>
+        </div>`;
+
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', (e) => {
+        const hintBtn = e.target.closest('[data-hint]');
+        if (hintBtn) { submitHint(hintBtn.dataset.hint); return; }
+        if (e.target.closest('[data-action="send-custom"]')) {
+            const input = document.getElementById('customHintInput');
+            const text = input ? input.value.trim() : '';
+            if (text) submitHint(text);
+            return;
+        }
+        if (e.target.closest('[data-action="cancel"]')) { closeHintModal(); return; }
+        if (e.target === overlay) closeHintModal();
+    });
+
+    overlay.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const input = document.getElementById('customHintInput');
+            const text = input ? input.value.trim() : '';
+            if (text) submitHint(text);
+        }
+    });
+}
+
+function closeHintModal() {
+    const overlay = document.getElementById('hintModalOverlay');
+    if (overlay) overlay.remove();
+}
+
+function submitHint(hint) {
+    if (!selectedTarget) return;
+    send({
+        type: 'victim_hint',
+        target_id: selectedTarget,
+        hint: hint
+    });
+    const feedbackText = LANG === 'pt' ? '💡 Dica enviada ao detetive!' : '💡 Hint sent to detective!';
+    showFeedback(feedbackText, 'success');
+    closeHintModal();
+    selectedTarget = null;
+    if (gameState) {
+        renderPlayerCircle(gameState.me);
+        renderActionBar(gameState.me);
+    }
 }
 
 function escapeHtml(str) {

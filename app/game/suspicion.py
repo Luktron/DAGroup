@@ -69,6 +69,9 @@ class SuspicionEngine:
                 profile.activity_score = min(1.0, profile.activity_score + 0.05)
             elif action_type == "interact":
                 profile.activity_score = min(1.0, profile.activity_score + 0.1)
+            elif action_type == "reported":
+                profile.activity_score = min(1.0, profile.activity_score + 0.15)
+                profile.base_score = min(1.0, profile.base_score + 0.1)
             profile.last_updated = time.time()
 
     def on_look_pattern(self, looker_id: str, target_id: str, target_died_soon: bool):

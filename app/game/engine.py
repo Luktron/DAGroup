@@ -65,14 +65,14 @@ class GameRoom:
     # Player management
     # ------------------------------------------------------------------
 
-    def add_player(self, player_id: str, name: str, is_ai: bool = False) -> Optional[Player]:
+    def add_player(self, player_id: str, name: str, is_ai: bool = False, gender: str = "m") -> Optional[Player]:
         if len(self.players) >= self.max_players:
             return None
         if player_id in self.players:
             return self.players[player_id]
 
         color = AVATAR_COLORS[len(self.players) % len(AVATAR_COLORS)]
-        player = Player(id=player_id, name=name, is_ai=is_ai, avatar_color=color)
+        player = Player(id=player_id, name=name, is_ai=is_ai, avatar_color=color, gender=gender)
         self.players[player_id] = player
         self.player_order.append(player_id)
         self.suspicion.register_player(player_id)
@@ -203,6 +203,11 @@ class GameRoom:
             return {"success": False, "error": "invalid_target"}
         if target.role == RoleType.ASSASSIN:
             return {"success": False, "error": "self_target"}
+
+        # Rule: assassin cannot kill the detective — detective auto-wins
+        if target.role == RoleType.DETECTIVE:
+            self.end_game("detective_auto")
+            return {"success": True, "detective_auto_win": True}
 
         now = time.time()
         if now - assassin.last_action_time < CONFIG.ASSASSIN_COOLDOWN:
@@ -487,6 +492,7 @@ class GameRoom:
             "me": player.to_private_dict(),
             "players": [],
             "winner": self.winner,
+            "is_creator": player_id == self.creator_id,
             "time_elapsed": round(time.time() - self.round_start_time, 0) if self.round_start_time else 0,
             "lang": self.lang,
         }
@@ -495,12 +501,20 @@ class GameRoom:
         for pid in self.player_order:
             p = self.players.get(pid)
             if p:
-                if pid == player_id:
-                    state["players"].append(p.to_private_dict())
+                if self.phase == GamePhase.FINISHED:
+                    # Game over: reveal all roles and role icons
+                    pdata = p.to_private_dict()
+                    pdata["icon"] = p.get_icon()
+                elif pid == player_id:
+                    pdata = p.to_private_dict()
+                    pdata["icon"] = p.get_icon()
                 elif player.role == RoleType.DETECTIVE and player.has_power:
-                    state["players"].append(p.to_detective_view())
+                    pdata = p.to_detective_view()
+                    pdata["icon"] = p.get_public_icon()
                 else:
-                    state["players"].append(p.to_public_dict())
+                    pdata = p.to_public_dict()
+                    pdata["icon"] = p.get_public_icon()
+                state["players"].append(pdata)
 
         # Add suspicion ranking for detective
         if player.role == RoleType.DETECTIVE and player.has_power:
@@ -519,7 +533,14 @@ class GameRoom:
             "max_players": self.max_players,
             "creator_id": self.creator_id,
             "players": [
-                {"id": p.id, "name": p.name, "is_ai": p.is_ai, "avatar_color": p.avatar_color}
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "is_ai": p.is_ai,
+                    "avatar_color": p.avatar_color,
+                    "gender": p.gender,
+                    "icon": p.get_public_icon(),
+                }
                 for p in self.players.values()
             ],
             "player_count": len(self.players),

@@ -18,13 +18,16 @@
             {% for p in room.players %}
             <div class="player-slot filled" style="--accent: {{ p.avatar_color }}">
                 <div class="avatar" style="background: {{ p.avatar_color }}">
-                    {{ p.name[0]|upper }}
+                    <img src="{{ p.icon or '/images/JogadorMasculina.png' }}" alt="" class="lobby-avatar-icon">
                 </div>
                 <span class="player-name">
                     {{ p.name }}
                     {% if p.is_ai %}<span class="ai-badge">🤖</span>{% endif %}
                     {% if p.id == room.creator_id %}<span class="host-badge">⭐</span>{% endif %}
                 </span>
+                {% if p.is_ai and player_id == room.creator_id %}
+                <button class="btn-kick-ai" onclick="kickAI('{{ p.id }}')" title="Remover IA">✕</button>
+                {% endif %}
             </div>
             {% endfor %}
 
@@ -94,12 +97,17 @@ function updateLobby(state) {
     state.players.forEach(p => {
         const isAI = p.is_ai ? '<span class="ai-badge">🤖</span>' : '';
         const isHost = p.id === state.creator_id ? '<span class="host-badge">⭐</span>' : '';
+        const iconSrc = p.icon || '/images/JogadorMasculina.png';
+        const kickBtn = (p.is_ai && PLAYER_ID === state.creator_id)
+            ? `<button class="btn-kick-ai" onclick="kickAI('${p.id}')" title="Remover IA">✕</button>`
+            : '';
         html += `
             <div class="player-slot filled" style="--accent: ${p.avatar_color}">
                 <div class="avatar" style="background: ${p.avatar_color}">
-                    ${p.name.charAt(0).toUpperCase()}
+                    <img src="${iconSrc}" alt="" class="lobby-avatar-icon">
                 </div>
                 <span class="player-name">${p.name} ${isAI} ${isHost}</span>
+                ${kickBtn}
             </div>`;
     });
 
@@ -129,6 +137,12 @@ function startGame() {
 function fillWithAI() {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'fill_ai' }));
+    }
+}
+
+function kickAI(botId) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'kick_ai', target_id: botId }));
     }
 }
 
