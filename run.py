@@ -8,9 +8,24 @@ import sys
 
 def install_dependencies():
     """Auto-install missing dependencies."""
-    deps = ["uvicorn", "fastapi", "websockets", "python-multipart", "aiofiles", "jinja2"]
+    is_termux = "com.termux" in os.environ.get("PREFIX", "")
+
+    # Termux needs older pydantic (pure Python, no Rust required)
+    if is_termux:
+        deps = [
+            "pydantic==1.10.18",
+            "uvicorn",
+            "fastapi==0.99.1",
+            "websockets",
+            "python-multipart",
+            "aiofiles",
+            "jinja2",
+        ]
+    else:
+        deps = ["uvicorn", "fastapi", "websockets", "python-multipart", "aiofiles", "jinja2"]
+
     for dep in deps:
-        mod = dep.replace("-", "_")
+        mod = dep.split("==")[0].replace("-", "_")
         try:
             __import__(mod)
         except ImportError:
