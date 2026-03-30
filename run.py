@@ -10,27 +10,33 @@ def install_dependencies():
     """Auto-install missing dependencies."""
     is_termux = "com.termux" in os.environ.get("PREFIX", "")
 
-    # Termux needs older pydantic (pure Python, no Rust required)
-    if is_termux:
-        deps = [
-            "pydantic==1.10.18",
-            "uvicorn",
-            "fastapi==0.99.1",
-            "websockets",
-            "python-multipart",
-            "aiofiles",
-            "jinja2",
-        ]
-    else:
-        deps = ["uvicorn", "fastapi", "websockets", "python-multipart", "aiofiles", "jinja2"]
-
-    for dep in deps:
-        mod = dep.split("==")[0].replace("-", "_")
+    # Check if all core modules are available
+    missing = False
+    for mod in ["uvicorn", "fastapi", "websockets", "multipart", "aiofiles", "jinja2"]:
         try:
             __import__(mod)
         except ImportError:
-            print(f"  Installing {dep}...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", dep, "-q"])
+            missing = True
+            break
+
+    if not missing:
+        return
+
+    print("  Installing dependencies...")
+    if is_termux:
+        # Termux: install all at once with pydantic v1 (no Rust needed)
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install",
+            "pydantic==1.10.18", "fastapi==0.99.1",
+            "uvicorn", "websockets", "python-multipart",
+            "aiofiles", "jinja2",
+        ])
+    else:
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install",
+            "uvicorn", "fastapi", "websockets",
+            "python-multipart", "aiofiles", "jinja2",
+        ])
 
 
 install_dependencies()
