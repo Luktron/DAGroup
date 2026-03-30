@@ -1,5 +1,6 @@
 """Start the Assassino da Piscada server."""
 
+import os
 import socket
 import uvicorn
 from app.config import CONFIG
@@ -29,10 +30,14 @@ if __name__ == "__main__":
     print(" * Press CTRL+C to quit")
     print()
 
+    # Disable reload on Termux (subprocess loses virtualenv context)
+    is_termux = "com.termux" in os.environ.get("PREFIX", "")
+    use_reload = not is_termux
+
     uvicorn.run(
         "app.main:app",
         host=CONFIG.HOST,
         port=port,
-        reload=True,
+        reload=use_reload,
         log_level="info",
     )
