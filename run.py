@@ -2,8 +2,26 @@
 
 import os
 import socket
-import uvicorn
-from app.config import CONFIG
+import subprocess
+import sys
+
+
+def install_dependencies():
+    """Auto-install missing dependencies."""
+    deps = ["uvicorn", "fastapi", "websockets", "python-multipart", "aiofiles", "jinja2"]
+    for dep in deps:
+        mod = dep.replace("-", "_")
+        try:
+            __import__(mod)
+        except ImportError:
+            print(f"  Installing {dep}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", dep, "-q"])
+
+
+install_dependencies()
+
+import uvicorn  # noqa: E402
+from app.config import CONFIG  # noqa: E402
 
 
 def get_local_ip():
