@@ -1,34 +1,63 @@
-# Deploy no Vercel (GitHub)
+# Deploy no Vercel
 
-Este projeto foi adaptado para rodar no Vercel com FastAPI + templates.
+## O que está configurado
 
-## O que ja esta configurado
+- Entrypoint serverless: `api/index.py` com handler ASGI
+- Roteamento global para o backend: `vercel.json`
+- Inclusão de templates, static e imagens no bundle
+- Runtime Python: 3.11
 
-- Entrypoint serverless: api/index.py
-- Roteamento global para o backend Python: vercel.json
-- Inclusao de templates, static e imagens no bundle da function: vercel.json
-- Paths absolutos para static/templates no backend (compatibilidade com ambiente serverless)
+## Como publicar (recomendado)
 
-## Como publicar
+### Opção 1: Via Vercel Dashboard (Recomendado)
 
-1. Suba o codigo para o GitHub.
-2. No painel do Vercel, clique em New Project.
-3. Importe o repositorio.
-4. Framework Preset: Other.
-5. Build Command: deixe vazio.
-6. Output Directory: deixe vazio.
-7. Deploy.
+1. Suba o código para o GitHub
+2. Acesse https://vercel.com/new
+3. Selecione "Import Git Repository"
+4. Importe seu repositório
+5. Deixe as configurações padrão:
+   - **Framework Preset**: Other
+   - **Build Command**: (deixe vazio)
+   - **Output Directory**: (deixe vazio)
+6. Clique em "Deploy"
 
-## Observacao importante sobre WebSocket
+### Opção 2: Via CLI
 
-A aplicacao usa WebSocket e estado em memoria para o jogo em tempo real.
-Em ambiente serverless, conexoes longas e estado local podem nao ser estaveis entre execucoes.
+```bash
+npm install -g vercel
+vercel --prod
+```
 
-Para producao com multiplayer em tempo real, o ideal e mover:
+## Importante: Limitações do Vercel Serverless
 
-- Estado de salas/jogadores para Redis ou banco externo.
-- Canal realtime para um servico dedicado (ex.: Ably, Pusher, Supabase Realtime) ou backend com conexao persistente.
+⚠️ **WebSocket em Vercel tem limitações:**
+- Conexões de longa duração podem expirar
+- Estado em memória não persiste entre requisições
+- Não é recomendado para jogos em tempo real com muitos jogadores
 
-Com a configuracao atual, o deploy no Vercel fica pronto para paginas/templates e endpoints HTTP.
+### Para funcionar melhor no Vercel:
+1. Implemente fallback para HTTP polling
+2. Use um serviço externo para gerenciar estado (Redis, Supabase, Ably)
+3. Considere usar Railway ou Render para multiplayer em tempo real
 
-> Nota: o Vercel serverless Python suporta melhor requisicoes HTTP/ASGI do que conexoes WebSocket persistentes. Se voce precisar do jogo em tempo real completo, use um backend com conexao persistente ou um servico realtime dedicado.
+## Se não funcionar
+
+### Erro: "Cannot find module"
+- Verifique se `requirements.txt` está na raiz do projeto
+- Confirme que `api/index.py` existe e importa `app.main`
+
+### Erro: "Connection timeout"
+- WebSocket pode estar enfrentando problemas
+- Use HTTP endpoints em vez de WebSocket no Vercel
+- Considere migrar para Railway para melhor suporte a WebSocket
+
+### Erro: "Static files not found"
+- Vercel incluiu automaticamente os arquivos de `app/` via `vercel.json`
+- Caminhos absolutos em `app/main.py` estão configurados corretamente
+
+## Exemplo de URL do Vercel
+
+Após deploy bem-sucedido:
+- URL: `https://seu-projeto.vercel.app`
+- API: `https://seu-projeto.vercel.app/api/...`
+

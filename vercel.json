@@ -3,13 +3,13 @@
   "functions": {
     "api/index.py": {
       "runtime": "python3.11",
-      "includeFiles": ["app/**"]
+      "includeFiles": ["app/**", "requirements.txt"]
     }
   },
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/api"
     }
   ]
 }
