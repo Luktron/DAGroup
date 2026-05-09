@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 import re
 import uuid
 
@@ -14,7 +15,8 @@ from app.game.engine import GameManager
 from app.game.ai import AIManager
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 # Shared instances (set from main.py)
 game_manager: GameManager | None = None

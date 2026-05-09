@@ -1,5 +1,9 @@
 Detective and Assassin in a group
 
+## Deploy no Vercel
+
+Veja o guia rapido em DEPLOY_VERCEL.md.
+
 Crie um prompt para agent LLM, sobre um jogo de suspense em grupo, onde 
 um assassino oculto tenta eliminar vítimas piscando para elas, enquanto 
 um detetive tenta identificá-lo antes que todos morram, detalhes de 

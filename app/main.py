@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
 from app.config import CONFIG
 from app.game.engine import GameManager
 from app.game.ai import AIManager
 from app.routes import lobby, game
+
+BASE_DIR = Path(__file__).resolve().parent
 
 # Create shared instances
 game_mgr = GameManager()
@@ -29,8 +32,8 @@ app = FastAPI(
 )
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-app.mount("/images", StaticFiles(directory="app/images"), name="images")
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+app.mount("/images", StaticFiles(directory=str(BASE_DIR / "images")), name="images")
 
 # Include routers
 app.include_router(lobby.router)
