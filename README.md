@@ -4,6 +4,21 @@ Detective and Assassin in a group
 
 Veja o guia rapido em DEPLOY_VERCEL.md.
 
+## Deploy no Railway
+
+1. Suba o código no GitHub.
+2. No painel do Railway, crie um novo projeto e conecte o repositório.
+3. Confirme que o `requirements.txt` será usado para instalar dependências.
+4. O Railway usa o `Procfile` abaixo para iniciar o app:
+
+```text
+web: uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-5052}
+```
+
+5. O arquivo `railway.json` está incluído para tornar o deploy ainda mais automático.
+
+> O Railway define `PORT` automaticamente, e o app agora lê essa variável no `app/config.py`.
+
 Crie um prompt para agent LLM, sobre um jogo de suspense em grupo, onde 
 um assassino oculto tenta eliminar vítimas piscando para elas, enquanto 
 um detetive tenta identificá-lo antes que todos morram, detalhes de 

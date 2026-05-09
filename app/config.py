@@ -47,8 +47,8 @@ class GameConfig:
     ASSASSIN_WIN_RATE_TARGET: float = 0.45
 
     # Server
-    HOST: str = "0.0.0.0"
-    PORT: int = 5052
+    HOST: str = os.environ.get("HOST", "0.0.0.0")
+    PORT: int = int(os.environ.get("PORT", "5052"))
     SECRET_KEY: str = field(default_factory=lambda: os.environ.get(
         "SECRET_KEY", os.urandom(32).hex()
     ))

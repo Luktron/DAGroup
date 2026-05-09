@@ -30,3 +30,5 @@ Para producao com multiplayer em tempo real, o ideal e mover:
 - Canal realtime para um servico dedicado (ex.: Ably, Pusher, Supabase Realtime) ou backend com conexao persistente.
 
 Com a configuracao atual, o deploy no Vercel fica pronto para paginas/templates e endpoints HTTP.
+
+> Nota: o Vercel serverless Python suporta melhor requisicoes HTTP/ASGI do que conexoes WebSocket persistentes. Se voce precisar do jogo em tempo real completo, use um backend com conexao persistente ou um servico realtime dedicado.

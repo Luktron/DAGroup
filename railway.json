@@ -1,0 +1,15 @@
+{
+  "project": {
+    "name": "DAGroup"
+  },
+  "services": [
+    {
+      "name": "web",
+      "plugin": "python",
+      "inputs": {
+        "startCommand": "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-5052}",
+        "requirements": "requirements.txt"
+      }
+    }
+  ]
+}
